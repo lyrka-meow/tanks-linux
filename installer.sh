@@ -115,6 +115,57 @@ check_tools() {
     return 0
 }
 
+run_root() {
+    if [ "$(id -u)" = "0" ]; then
+        "$@"
+        return $?
+    fi
+
+    if need_cmd sudo; then
+        sudo "$@"
+        return $?
+    fi
+
+    fail "Нужен sudo для установки системных зависимостей."
+    return 1
+}
+
+install_system_deps() {
+    say "Проверяю системные зависимости."
+
+    if need_cmd pacman; then
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils libx11 libxrandr libxrender libxi libxinerama libxcursor alsa-lib libpulse openal mesa lib32-mesa"
+        if [ -n "${PRIME_RUN:-}" ]; then
+            packages="$packages nvidia-prime lib32-nvidia-utils"
+        fi
+        run_root pacman -S --needed --noconfirm $packages
+        return $?
+    fi
+
+    if need_cmd apt-get; then
+        run_root dpkg --add-architecture i386 >/dev/null 2>&1 || true
+        run_root apt-get update || return 1
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils libgl1 libgl1-mesa-dri libasound2 libpulse0 libopenal1 libx11-6 libxrandr2 libxrender1 libxi6 libxinerama1 libxcursor1 libgl1:i386 libgl1-mesa-dri:i386 libpulse0:i386 libopenal1:i386 libx11-6:i386 libxrandr2:i386 libxrender1:i386 libxi6:i386 libxinerama1:i386 libxcursor1:i386"
+        run_root apt-get install -y $packages
+        return $?
+    fi
+
+    if need_cmd dnf; then
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils mesa-libGL mesa-dri-drivers alsa-lib pulseaudio-libs openal-soft libX11 libXrandr libXrender libXi libXinerama libXcursor mesa-libGL.i686 mesa-dri-drivers.i686 alsa-lib.i686 pulseaudio-libs.i686 openal-soft.i686 libX11.i686 libXrandr.i686 libXrender.i686 libXi.i686 libXinerama.i686 libXcursor.i686"
+        run_root dnf install -y $packages
+        return $?
+    fi
+
+    if need_cmd zypper; then
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils Mesa libX11-6 libXrandr2 libXrender1 libXi6 libXinerama1 libXcursor1 libasound2 libpulse0 libopenal1 Mesa-32bit libX11-6-32bit libXrandr2-32bit libXrender1-32bit libXi6-32bit libXinerama1-32bit libXcursor1-32bit libasound2-32bit libpulse0-32bit libopenal1-32bit"
+        run_root zypper --non-interactive install $packages
+        return $?
+    fi
+
+    warn "Не найден поддерживаемый менеджер пакетов. Поддерживаются pacman, apt, dnf, zypper."
+    return 0
+}
+
 ask_prime_run() {
     while :; do
         printf 'Использовать prime-run для NVIDIA? [y/N]: '
@@ -226,7 +277,7 @@ if [ ! -f "\$LGC" ]; then
 fi
 
 export STEAM_COMPAT_DATA_PATH="\$COMPAT"
-export STEAM_COMPAT_CLIENT_INSTALL_PATH="\$HOME/.local/share/Steam"
+export STEAM_COMPAT_CLIENT_INSTALL_PATH="\$APP_DIR/steam"
 export STEAM_COMPAT_APP_ID="\$STEAM_COMPAT_APP_ID"
 export PROTON_LOG=1
 export PROTON_LOG_DIR="\$LOGS"
@@ -238,7 +289,7 @@ export QT_AUTO_SCREEN_SCALE_FACTOR=0
 export __GL_SHADER_DISK_CACHE=1
 export __GL_SHADER_DISK_CACHE_PATH="\$APP_DIR/nvidia-cache"
 
-mkdir -p "\$__GL_SHADER_DISK_CACHE_PATH"
+mkdir -p "\$__GL_SHADER_DISK_CACHE_PATH" "\$STEAM_COMPAT_CLIENT_INSTALL_PATH"
 
 cd "\$(dirname "\$LGC")" || exit 1
 
@@ -306,7 +357,7 @@ run_lgc_installer() {
     compat="$APP_DIR/compat"
 
     export STEAM_COMPAT_DATA_PATH="$compat"
-    export STEAM_COMPAT_CLIENT_INSTALL_PATH="$HOME/.local/share/Steam"
+    export STEAM_COMPAT_CLIENT_INSTALL_PATH="$APP_DIR/steam"
     export STEAM_COMPAT_APP_ID="$STEAM_COMPAT_APP_ID"
     export PROTON_LOG=1
     export PROTON_LOG_DIR="$LOG_DIR"
@@ -316,7 +367,7 @@ run_lgc_installer() {
     export QT_SCALE_FACTOR=1
     export QT_AUTO_SCREEN_SCALE_FACTOR=0
 
-    mkdir -p "$compat"
+    mkdir -p "$compat" "$STEAM_COMPAT_CLIENT_INSTALL_PATH"
 
     say "Запускаю установщик Lesta Game Center."
     say "После установки установите Tanks Blitz внутри лаунчера."
@@ -332,6 +383,7 @@ install_all() {
     ensure_base_dirs
     check_tools || return 1
     ask_prime_run
+    install_system_deps || return 1
     write_config
     install_proton || return 1
     download_lgc || return 1
