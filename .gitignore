@@ -1,0 +1,12 @@
+runtime/
+logs/
+third_party/
+*.log
+*.tar.gz
+*.zip
+*.exe
+*.lnk
+*.desktop
+*.old
+*.bak
+.DS_Store
