@@ -10,7 +10,7 @@ LOG_DIR="$APP_DIR/logs"
 DOWNLOAD_DIR="$APP_DIR/downloads"
 PROTON_VERSION="GE-Proton10-34"
 PROTON_URL="https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton10-34/GE-Proton10-34.tar.gz"
-LGC_URL="https://redirect.lesta.ru/LGC/Lesta_Game_Center_Install_RU.exe"
+LGC_PACKAGE_URL="https://redirect.lesta.ru/lds/lesta_game_center_install_ru.dspkg"
 STEAM_COMPAT_APP_ID="450422364"
 
 red="$(printf '\033[31m')"
@@ -83,6 +83,31 @@ detect_downloader() {
     return 1
 }
 
+detect_extractor() {
+    if need_cmd bsdtar; then
+        EXTRACTOR="bsdtar"
+        return 0
+    fi
+
+    if need_cmd 7z; then
+        EXTRACTOR="7z"
+        return 0
+    fi
+
+    if need_cmd 7za; then
+        EXTRACTOR="7za"
+        return 0
+    fi
+
+    if need_cmd 7zr; then
+        EXTRACTOR="7zr"
+        return 0
+    fi
+
+    fail "Нужен bsdtar или 7z для распаковки Lesta Game Center."
+    return 1
+}
+
 download_file() {
     url="$1"
     out="$2"
@@ -135,7 +160,7 @@ install_system_deps() {
     say "Проверяю системные зависимости."
 
     if need_cmd pacman; then
-        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils libx11 libxrandr libxrender libxi libxinerama libxcursor alsa-lib libpulse openal mesa lib32-mesa"
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils libarchive libx11 libxrandr libxrender libxi libxinerama libxcursor alsa-lib libpulse openal mesa lib32-mesa"
         if [ -n "${PRIME_RUN:-}" ]; then
             packages="$packages nvidia-prime lib32-nvidia-utils"
         fi
@@ -146,19 +171,19 @@ install_system_deps() {
     if need_cmd apt-get; then
         run_root dpkg --add-architecture i386 >/dev/null 2>&1 || true
         run_root apt-get update || return 1
-        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils libgl1 libgl1-mesa-dri libasound2 libpulse0 libopenal1 libx11-6 libxrandr2 libxrender1 libxi6 libxinerama1 libxcursor1 libgl1:i386 libgl1-mesa-dri:i386 libpulse0:i386 libopenal1:i386 libx11-6:i386 libxrandr2:i386 libxrender1:i386 libxi6:i386 libxinerama1:i386 libxcursor1:i386"
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils libarchive-tools libgl1 libgl1-mesa-dri libasound2 libpulse0 libopenal1 libx11-6 libxrandr2 libxrender1 libxi6 libxinerama1 libxcursor1 libgl1:i386 libgl1-mesa-dri:i386 libpulse0:i386 libopenal1:i386 libx11-6:i386 libxrandr2:i386 libxrender1:i386 libxi6:i386 libxinerama1:i386 libxcursor1:i386"
         run_root apt-get install -y $packages
         return $?
     fi
 
     if need_cmd dnf; then
-        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils mesa-libGL mesa-dri-drivers alsa-lib pulseaudio-libs openal-soft libX11 libXrandr libXrender libXi libXinerama libXcursor mesa-libGL.i686 mesa-dri-drivers.i686 alsa-lib.i686 pulseaudio-libs.i686 openal-soft.i686 libX11.i686 libXrandr.i686 libXrender.i686 libXi.i686 libXinerama.i686 libXcursor.i686"
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils bsdtar mesa-libGL mesa-dri-drivers alsa-lib pulseaudio-libs openal-soft libX11 libXrandr libXrender libXi libXinerama libXcursor mesa-libGL.i686 mesa-dri-drivers.i686 alsa-lib.i686 pulseaudio-libs.i686 openal-soft.i686 libX11.i686 libXrandr.i686 libXrender.i686 libXi.i686 libXinerama.i686 libXcursor.i686"
         run_root dnf install -y $packages
         return $?
     fi
 
     if need_cmd zypper; then
-        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils Mesa libX11-6 libXrandr2 libXrender1 libXi6 libXinerama1 libXcursor1 libasound2 libpulse0 libopenal1 Mesa-32bit libX11-6-32bit libXrandr2-32bit libXrender1-32bit libXi6-32bit libXinerama1-32bit libXcursor1-32bit libasound2-32bit libpulse0-32bit libopenal1-32bit"
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils bsdtar Mesa libX11-6 libXrandr2 libXrender1 libXi6 libXinerama1 libXcursor1 libasound2 libpulse0 libopenal1 Mesa-32bit libX11-6-32bit libXrandr2-32bit libXrender1-32bit libXi6-32bit libXinerama1-32bit libXcursor1-32bit libasound2-32bit libpulse0-32bit libopenal1-32bit"
         run_root zypper --non-interactive install $packages
         return $?
     fi
@@ -226,15 +251,15 @@ install_proton() {
 }
 
 download_lgc() {
-    installer="$DOWNLOAD_DIR/Lesta_Game_Center_Install_RU.exe"
+    installer="$DOWNLOAD_DIR/lesta_game_center_install_ru.dspkg"
 
     if [ -f "$installer" ]; then
-        ok "Установщик Lesta Game Center уже скачан."
+        ok "Пакет Lesta Game Center уже скачан."
         return 0
     fi
 
     say "Скачиваю Lesta Game Center..."
-    download_file "$LGC_URL" "$installer"
+    download_file "$LGC_PACKAGE_URL" "$installer"
 }
 
 find_lgc() {
@@ -398,30 +423,17 @@ copy_self() {
 }
 
 run_lgc_installer() {
-    installer="$DOWNLOAD_DIR/Lesta_Game_Center_Install_RU.exe"
-    proton="$APP_DIR/proton/$PROTON_VERSION/proton"
-    compat="$APP_DIR/compat"
+    package="$DOWNLOAD_DIR/lesta_game_center_install_ru.dspkg"
+    target="$APP_DIR/compat/pfx/drive_c/Program Files (x86)/Lesta/GameCenter"
 
-    export STEAM_COMPAT_DATA_PATH="$compat"
-    export STEAM_COMPAT_CLIENT_INSTALL_PATH="$APP_DIR/steam"
-    export STEAM_COMPAT_APP_ID="$STEAM_COMPAT_APP_ID"
-    export PROTON_LOG=1
-    export PROTON_LOG_DIR="$LOG_DIR"
-    export PROTON_USE_WINED3D=1
-    export WINEDLLOVERRIDES="d3d9,d3d10core,d3d11,dxgi=b"
-    export GDK_SCALE=1
-    export QT_SCALE_FACTOR=1
-    export QT_AUTO_SCREEN_SCALE_FACTOR=0
+    mkdir -p "$target"
 
-    mkdir -p "$compat" "$STEAM_COMPAT_CLIENT_INSTALL_PATH"
+    say "Распаковываю Lesta Game Center..."
 
-    say "Запускаю установщик Lesta Game Center."
-    say "После установки установите Tanks Blitz внутри лаунчера."
-
-    if [ -n "$PRIME_RUN" ]; then
-        "$PRIME_RUN" "$proton" run "$installer"
+    if [ "${EXTRACTOR:-}" = "bsdtar" ]; then
+        bsdtar -xf "$package" -C "$target"
     else
-        "$proton" run "$installer"
+        "$EXTRACTOR" x -y "-o$target" "$package" >/dev/null
     fi
 }
 
@@ -430,6 +442,7 @@ install_all() {
     check_tools || return 1
     ask_prime_run
     install_system_deps || return 1
+    detect_extractor || return 1
     write_config
     install_proton || return 1
     download_lgc || return 1
