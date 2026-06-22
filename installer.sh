@@ -64,7 +64,8 @@ ensure_path() {
         fi
     done
 
-    warn "Добавил $BIN_DIR в PATH. Если команда tanks не найдется, перелогиньтесь или выполните: export PATH=\"\$HOME/bin:\$PATH\""
+    warn "Добавил $BIN_DIR в PATH."
+    warn "Для текущего терминала выполните: export PATH=\"\$HOME/bin:\$PATH\""
 }
 
 detect_downloader() {
@@ -236,6 +237,35 @@ download_lgc() {
     download_file "$LGC_URL" "$installer"
 }
 
+find_lgc() {
+    prefix="$APP_DIR/compat/pfx"
+
+    for file in \
+        "$prefix/drive_c/Program Files (x86)/Lesta/GameCenter/lgc.exe" \
+        "$prefix/drive_c/Program Files/Lesta/GameCenter/lgc.exe" \
+        "$prefix/drive_c/users/steamuser/AppData/Local/Lesta/GameCenter/lgc.exe"
+    do
+        if [ -f "$file" ]; then
+            printf '%s\n' "$file"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+verify_lgc_installed() {
+    if find_lgc >/dev/null 2>&1; then
+        ok "Lesta Game Center установлен."
+        return 0
+    fi
+
+    fail "Lesta Game Center не найден после установки."
+    warn "Установщик мог быть закрыт, завершиться без установки или поставить файлы в другой путь."
+    warn "Запустите установку еще раз через: tanks menu"
+    return 1
+}
+
 write_launcher() {
     cat > "$BIN_DIR/tanks" <<EOF
 #!/bin/sh
@@ -261,8 +291,22 @@ fi
 PROTON="\$APP_DIR/proton/\$PROTON_VERSION/proton"
 COMPAT="\$APP_DIR/compat"
 PREFIX="\$COMPAT/pfx"
-LGC="\$PREFIX/drive_c/Program Files (x86)/Lesta/GameCenter/lgc.exe"
 LOGS="\$APP_DIR/logs"
+
+find_lgc() {
+    for file in \\
+        "\$PREFIX/drive_c/Program Files (x86)/Lesta/GameCenter/lgc.exe" \\
+        "\$PREFIX/drive_c/Program Files/Lesta/GameCenter/lgc.exe" \\
+        "\$PREFIX/drive_c/users/steamuser/AppData/Local/Lesta/GameCenter/lgc.exe"
+    do
+        if [ -f "\$file" ]; then
+            printf '%s\\n' "\$file"
+            return 0
+        fi
+    done
+
+    return 1
+}
 
 mkdir -p "\$LOGS" "\$COMPAT"
 
@@ -271,7 +315,9 @@ if [ ! -x "\$PROTON" ]; then
     exit 1
 fi
 
-if [ ! -f "\$LGC" ]; then
+LGC="\$(find_lgc || true)"
+
+if [ -z "\$LGC" ]; then
     echo "Lesta Game Center не найден. Запустите: tanks menu"
     exit 1
 fi
@@ -393,6 +439,7 @@ install_all() {
     copy_self
     ensure_path
     run_lgc_installer || return 1
+    verify_lgc_installed || return 1
     clean_shortcuts
     ok "Готово. Запуск: tanks"
 }
