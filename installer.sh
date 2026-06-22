@@ -291,6 +291,26 @@ verify_lgc_installed() {
     return 1
 }
 
+random_hex() {
+    od -An -N20 -tx1 /dev/urandom | tr -d ' \n' | tr '[:lower:]' '[:upper:]'
+}
+
+write_lgc_data() {
+    data="$APP_DIR/compat/pfx/drive_c/ProgramData/Lesta/GameCenter/data"
+
+    mkdir -p "$data"
+
+    if [ ! -f "$data/pc_id.dat" ]; then
+        random_hex > "$data/pc_id.dat"
+    fi
+
+    if [ ! -f "$data/lgc_id.dat" ]; then
+        random_hex > "$data/lgc_id.dat"
+    fi
+
+    printf 'C:\\Program Files (x86)\\Lesta\\GameCenter' > "$data/lgc_path.dat"
+}
+
 write_launcher() {
     cat > "$BIN_DIR/tanks" <<EOF
 #!/bin/sh
@@ -435,6 +455,8 @@ run_lgc_installer() {
     else
         "$EXTRACTOR" x -y "-o$target" "$package" >/dev/null
     fi
+
+    write_lgc_data
 }
 
 install_all() {
