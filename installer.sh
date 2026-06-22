@@ -394,6 +394,24 @@ EOF
     chmod +x "$BIN_DIR/tanks"
 }
 
+write_icon_file() {
+    icon="$APP_DIR/tanks.svg"
+
+    cat > "$icon" <<EOF
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="24" fill="#2f3f2f"/>
+  <path d="M23 83h82a12 12 0 0 1 0 24H23a12 12 0 0 1 0-24Z" fill="#1b241c"/>
+  <path d="M35 48h45a16 16 0 0 1 16 16v20H27V56a8 8 0 0 1 8-8Z" fill="#6f8d45"/>
+  <path d="M72 38h18a8 8 0 0 1 8 8v17H63V47a9 9 0 0 1 9-9Z" fill="#86a94f"/>
+  <path d="M91 47h28a5 5 0 0 1 0 10H91Z" fill="#1b241c"/>
+  <circle cx="35" cy="95" r="8" fill="#95a78b"/>
+  <circle cx="64" cy="95" r="8" fill="#95a78b"/>
+  <circle cx="93" cy="95" r="8" fill="#95a78b"/>
+  <path d="M39 61h28v12H39Z" fill="#243324"/>
+</svg>
+EOF
+}
+
 write_desktop_file() {
     desktop="$HOME/.local/share/applications/$APP_ID.desktop"
 
@@ -403,6 +421,7 @@ Type=Application
 Name=Tanks Blitz
 Comment=Запуск Tanks Blitz через Proton
 Exec=$BIN_DIR/tanks
+Icon=$APP_DIR/tanks.svg
 Terminal=false
 Categories=Game;
 StartupNotify=false
@@ -469,6 +488,7 @@ install_all() {
     install_proton || return 1
     download_lgc || return 1
     write_launcher
+    write_icon_file
     write_desktop_file
     clean_shortcuts
     copy_self
