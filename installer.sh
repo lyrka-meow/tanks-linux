@@ -160,7 +160,7 @@ install_system_deps() {
     say "Проверяю системные зависимости."
 
     if need_cmd pacman; then
-        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils libarchive libx11 libxrandr libxrender libxi libxinerama libxcursor alsa-lib libpulse openal mesa lib32-mesa"
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils libarchive freetype2 fontconfig libx11 libxrandr libxrender libxi libxinerama libxcursor alsa-lib libpulse openal mesa lib32-freetype2 lib32-fontconfig lib32-mesa"
         if [ -n "${PRIME_RUN:-}" ]; then
             packages="$packages nvidia-prime lib32-nvidia-utils"
         fi
@@ -171,19 +171,19 @@ install_system_deps() {
     if need_cmd apt-get; then
         run_root dpkg --add-architecture i386 >/dev/null 2>&1 || true
         run_root apt-get update || return 1
-        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils libarchive-tools libgl1 libgl1-mesa-dri libasound2 libpulse0 libopenal1 libx11-6 libxrandr2 libxrender1 libxi6 libxinerama1 libxcursor1 libgl1:i386 libgl1-mesa-dri:i386 libpulse0:i386 libopenal1:i386 libx11-6:i386 libxrandr2:i386 libxrender1:i386 libxi6:i386 libxinerama1:i386 libxcursor1:i386"
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils libarchive-tools libfreetype6 fontconfig libgl1 libgl1-mesa-dri libasound2 libpulse0 libopenal1 libx11-6 libxrandr2 libxrender1 libxi6 libxinerama1 libxcursor1 libfreetype6:i386 libfontconfig1:i386 libgl1:i386 libgl1-mesa-dri:i386 libpulse0:i386 libopenal1:i386 libx11-6:i386 libxrandr2:i386 libxrender1:i386 libxi6:i386 libxinerama1:i386 libxcursor1:i386"
         run_root apt-get install -y $packages
         return $?
     fi
 
     if need_cmd dnf; then
-        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils bsdtar mesa-libGL mesa-dri-drivers alsa-lib pulseaudio-libs openal-soft libX11 libXrandr libXrender libXi libXinerama libXcursor mesa-libGL.i686 mesa-dri-drivers.i686 alsa-lib.i686 pulseaudio-libs.i686 openal-soft.i686 libX11.i686 libXrandr.i686 libXrender.i686 libXi.i686 libXinerama.i686 libXcursor.i686"
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils bsdtar freetype fontconfig mesa-libGL mesa-dri-drivers alsa-lib pulseaudio-libs openal-soft libX11 libXrandr libXrender libXi libXinerama libXcursor freetype.i686 fontconfig.i686 mesa-libGL.i686 mesa-dri-drivers.i686 alsa-lib.i686 pulseaudio-libs.i686 openal-soft.i686 libX11.i686 libXrandr.i686 libXrender.i686 libXi.i686 libXinerama.i686 libXcursor.i686"
         run_root dnf install -y $packages
         return $?
     fi
 
     if need_cmd zypper; then
-        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils bsdtar Mesa libX11-6 libXrandr2 libXrender1 libXi6 libXinerama1 libXcursor1 libasound2 libpulse0 libopenal1 Mesa-32bit libX11-6-32bit libXrandr2-32bit libXrender1-32bit libXi6-32bit libXinerama1-32bit libXcursor1-32bit libasound2-32bit libpulse0-32bit libopenal1-32bit"
+        packages="curl wget tar gzip sed grep findutils coreutils desktop-file-utils bsdtar freetype2 fontconfig Mesa libX11-6 libXrandr2 libXrender1 libXi6 libXinerama1 libXcursor1 libasound2 libpulse0 libopenal1 freetype2-32bit fontconfig-32bit Mesa-32bit libX11-6-32bit libXrandr2-32bit libXrender1-32bit libXi6-32bit libXinerama1-32bit libXcursor1-32bit libasound2-32bit libpulse0-32bit libopenal1-32bit"
         run_root zypper --non-interactive install $packages
         return $?
     fi
